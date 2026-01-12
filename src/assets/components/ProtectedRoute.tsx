@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../AuthContext';
+import ApprovalWaiting from './ApprovalWaiting';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -7,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, adminOnly }: ProtectedRouteProps) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, permissionStatus } = useAuth();
 
   if (loading) {
     return (
@@ -25,6 +26,11 @@ const ProtectedRoute = ({ children, adminOnly }: ProtectedRouteProps) => {
 
   if (adminOnly && !isAdmin) {
     return <Navigate to="/register" />;
+  }
+
+  // Permission check for non-admin routes (like /register)
+  if (!adminOnly && !isAdmin && permissionStatus === 'pending') {
+    return <ApprovalWaiting />;
   }
 
   if (!adminOnly && isAdmin) {

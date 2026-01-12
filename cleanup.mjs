@@ -28,6 +28,6 @@ async function cleanup() {
         await Promise.all(updates);
         console.log(`Removed ${updates.length} test teams.`);
     }
-    process.exit(0);
+    process.exit(0); 98o
 }
 cleanup();

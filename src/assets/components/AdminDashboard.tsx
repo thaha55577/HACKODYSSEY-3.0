@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ref, onValue, off } from 'firebase/database';
+import { ref, onValue, off, update, remove } from 'firebase/database';
 import { db, auth } from '../../firebase.ts';
 import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { saveAs } from 'file-saver';
@@ -49,18 +49,29 @@ interface AttendanceRow {
   registrationTime?: string;
 }
 
+interface PermissionRequest {
+  uid: string;
+  email: string;
+  displayName: string;
+  status: 'pending' | 'approved' | 'rejected';
+  timestamp: string;
+  isOldUser?: boolean;
+}
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [teams, setTeams] = useState<Team[]>([]);
+  const [permissions, setPermissions] = useState<PermissionRequest[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showPermissions, setShowPermissions] = useState(false);
 
   useEffect(() => {
     const teamsRef = ref(db, 'teams');
+    const permissionsRef = ref(db, 'permissions');
 
-    const handleData = (snapshot: any) => {
+    const handleTeamsData = (snapshot: any) => {
       const data = snapshot.val();
-
       if (!data) {
         setTeams([]);
         setLoading(false);
@@ -73,7 +84,6 @@ const AdminDashboard = () => {
         payment: teamData.payment,
       }));
 
-      // Sort by timestamp ascending (oldest first)
       processedTeams.sort((a, b) => {
         const timeA = a.payment?.timestamp ? new Date(a.payment.timestamp).getTime() : 0;
         const timeB = b.payment?.timestamp ? new Date(b.payment.timestamp).getTime() : 0;
@@ -84,21 +94,75 @@ const AdminDashboard = () => {
       setLoading(false);
     };
 
-    onValue(teamsRef, handleData);
+    const handlePermissionsData = (snapshot: any) => {
+      const data = snapshot.val();
+      if (!data) {
+        setPermissions([]);
+        return;
+      }
+
+      const processedPermissions = Object.entries(data).map(([uid, perData]: [string, any]) => ({
+        uid,
+        ...perData,
+      }));
+
+      // Sort by status (pending first) then by timestamp
+      processedPermissions.sort((a, b) => {
+        if (a.status === 'pending' && b.status !== 'pending') return -1;
+        if (a.status !== 'pending' && b.status === 'pending') return 1;
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
+
+      setPermissions(processedPermissions);
+    };
+
+    onValue(teamsRef, handleTeamsData);
+    onValue(permissionsRef, handlePermissionsData);
 
     return () => {
       off(teamsRef);
+      off(permissionsRef);
     };
   }, []);
+
+  const handleApprove = async (uid: string) => {
+    playSfx('click');
+    try {
+      await update(ref(db, `permissions/${uid}`), { status: 'approved' });
+      toast.success('Access Granted');
+    } catch (error) {
+      toast.error('Failed to grant access');
+    }
+  };
+
+  const handleReject = async (uid: string) => {
+    playSfx('click');
+    try {
+      await update(ref(db, `permissions/${uid}`), { status: 'rejected' });
+      toast.success('Access Revoked');
+    } catch (error) {
+      toast.error('Failed to revoke access');
+    }
+  };
+
+  const handleDeletePermission = async (uid: string) => {
+    playSfx('click');
+    if (window.confirm('Are you sure you want to delete this permission record?')) {
+      try {
+        await remove(ref(db, `permissions/${uid}`));
+        toast.success('Permission Record Deleted');
+      } catch (error) {
+        toast.error('Failed to delete record');
+      }
+    }
+  };
 
   const playSfx = (type: 'transform' | 'click') => {
     const sound = document.getElementById(`sfx-${type}`) as HTMLAudioElement;
     if (sound) {
       sound.currentTime = 0;
       sound.volume = 0.4;
-      sound.play().catch(() => {
-        // Auto-play policy might block this without interaction
-      });
+      sound.play().catch(() => { });
     }
   };
 
@@ -150,7 +214,6 @@ const AdminDashboard = () => {
       return;
     }
 
-    // CSV header with new residence/hostel columns
     let csvContent = 'Team Number,Team Name,Reg Number,Name,Department,Phone Number,Residence Type,Hostel Name,Room Number,Warden Name,Warden Phone,Registration Time\n';
 
     attendanceRows.forEach((row) => {
@@ -245,7 +308,6 @@ const AdminDashboard = () => {
         lineWidth: 0.1,
         lineColor: [0, 0, 0],
       },
-      // rely on autoTable default column sizing for PDF
     });
 
     doc.save('HACK-AI-THON-Team-Details.pdf');
@@ -343,19 +405,16 @@ const AdminDashboard = () => {
   };
 
   const triggerBlast = () => {
-    // 1. Play Explosion Sound
     const blastSound = new Audio('https://www.soundjay.com/mechanical/sounds/explosion-01.mp3');
     blastSound.volume = 0.5;
     blastSound.play().catch(() => { });
-
-    // 2. Add Shake to the body
     document.body.classList.add('shake-active');
-
-    // 3. Remove shake after animation ends
     setTimeout(() => {
       document.body.classList.remove('shake-active');
     }, 500);
   };
+
+  const pendingCount = permissions.filter(p => p.status === 'pending').length;
 
   return (
     <div className="min-h-screen px-4 py-8 relative overflow-hidden">
@@ -368,9 +427,23 @@ const AdminDashboard = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
             <h1 className="cybertron-title text-4xl">COMMAND CENTER</h1>
-            <button onClick={handleLogout} className="glow-btn" onMouseDown={() => playSfx('click')}>
-              ABORT SESSION
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowPermissions(true)}
+                className={`glow-btn relative ${pendingCount > 0 ? 'border-yellow-500 text-yellow-500' : ''}`}
+                onMouseDown={() => playSfx('click')}
+              >
+                ACCESS REQUESTS
+                {pendingCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center animate-bounce shadow-[0_0_10px_rgba(255,0,0,0.8)]">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+              <button onClick={handleLogout} className="glow-btn border-red-500 text-red-500" onMouseDown={() => playSfx('click')}>
+                ABORT SESSION
+              </button>
+            </div>
           </div>
 
           <div className="tf-card mb-6 p-6">
@@ -394,7 +467,7 @@ const AdminDashboard = () => {
                   EXTRACT DATA (PDF)
                 </button>
               </div>
-              <div className="flex flex-col gap-2 ml-2 mt-2">
+              <div className="flex flex-col gap-2 ml-2">
                 <button onClick={() => handleExportFilteredPDF('Hosteller')} className="glow-btn text-xs px-3 py-2" onMouseDown={() => playSfx('click')}>
                   EXTRACT HOSTELLERS
                 </button>
@@ -436,16 +509,12 @@ const AdminDashboard = () => {
                   role="button"
                   tabIndex={0}
                 >
-                  {/* Video Overlay (Placeholder or actual if available) */}
                   <div className="video-overlay absolute inset-0 z-0">
-                    {/* Using a placeholder video or image if no specific video is available per team */}
                     <div className="w-full h-full bg-gradient-to-t from-black to-transparent opacity-50"></div>
                   </div>
-
                   <div className="explosion-overlay"></div>
                   <div className="hud-line"></div>
                   <div className="glitch-overlay opacity-0 group-hover:opacity-100 transition-opacity"></div>
-
                   <div className="card-content relative z-10 p-6 h-full flex flex-col justify-between min-h-[200px]">
                     <div>
                       <h3 className="text-2xl font-black text-white mb-2 tracking-wider" style={{ fontFamily: 'Orbitron', textShadow: '0 0 10px #00d4ff' }}>
@@ -458,7 +527,6 @@ const AdminDashboard = () => {
                       </div>
                       <div className="h-1 w-12 bg-cyan-500 mb-4"></div>
                     </div>
-
                     <div className="flex justify-between items-end">
                       <div className="text-cyan-400 font-mono text-sm">
                         UNITS: {team.members.length}
@@ -478,6 +546,90 @@ const AdminDashboard = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* Permissions Modal */}
+      <AnimatePresence>
+        {showPermissions && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 backdrop-blur-md bg-black/80">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="tf-card w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-0 border-yellow-500/30"
+            >
+              <div className="p-6 border-b border-yellow-500/20 flex justify-between items-center bg-black/40">
+                <h2 className="text-2xl text-yellow-400 font-orbitron tracking-wider">CLEARANCE PROTOCOLS</h2>
+                <button
+                  onClick={() => setShowPermissions(false)}
+                  className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="overflow-y-auto p-6 space-y-4 custom-scrollbar">
+                {permissions.length === 0 ? (
+                  <p className="text-center text-gray-500 py-10 font-mono">NO PENDING ACCESS REQUESTS</p>
+                ) : (
+                  permissions.map((req) => (
+                    <div
+                      key={req.uid}
+                      className={`p-4 rounded-lg border flex flex-col md:flex-row justify-between items-center gap-4 transition-all ${req.status === 'pending'
+                          ? 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
+                          : req.status === 'approved'
+                            ? 'bg-green-500/10 border-green-500/20 opacity-80'
+                            : 'bg-red-500/10 border-red-500/20 opacity-80'
+                        }`}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg text-white font-bold font-mono">{req.displayName}</span>
+                          {req.isOldUser && (
+                            <span className="px-2 py-0.5 bg-cyan-900/40 text-cyan-400 text-[10px] rounded border border-cyan-800 uppercase">Legacy</span>
+                          )}
+                          <span className={`px-2 py-0.5 text-[10px] rounded border uppercase ${req.status === 'pending' ? 'bg-yellow-900/40 text-yellow-400 border-yellow-800' :
+                              req.status === 'approved' ? 'bg-green-900/40 text-green-400 border-green-800' :
+                                'bg-red-900/40 text-red-400 border-red-800'
+                            }`}>
+                            {req.status}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-400 font-mono">{req.email}</div>
+                        <div className="text-[10px] text-gray-500 font-mono mt-1">Requested: {new Date(req.timestamp).toLocaleString()}</div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        {req.status !== 'approved' && (
+                          <button
+                            onClick={() => handleApprove(req.uid)}
+                            className="bg-green-600/20 hover:bg-green-600/40 text-green-400 border border-green-500/50 px-4 py-2 text-xs font-bold rounded flex items-center gap-2"
+                          >
+                            ✓ GRANT ACCESS
+                          </button>
+                        )}
+                        {req.status !== 'rejected' && (
+                          <button
+                            onClick={() => handleReject(req.uid)}
+                            className="bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/50 px-4 py-2 text-xs font-bold rounded flex items-center gap-2"
+                          >
+                            ✕ REVOKE
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeletePermission(req.uid)}
+                          className="bg-gray-800 hover:bg-gray-700 text-gray-400 px-3 py-2 text-xs rounded"
+                        >
+                          DELETE
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -672,7 +672,7 @@ const RegistrationForm = () => {
     );
   }
 
-  if (registrationCount >= 65 && !isAdmin) {
+  if (registrationCount >= 75 && !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 relative">
         <div className="glass-card w-full max-w-2xl p-12 border border-red-500/50 text-center relative overflow-hidden">
@@ -685,7 +685,7 @@ const RegistrationForm = () => {
             </h2>
 
             <p className="text-xl text-gray-300 mb-8 font-mono leading-relaxed">
-              The maximum limit of 65 teams has been reached. We are no longer accepting new registrations through the portal.
+              The maximum limit of 75 teams has been reached. We are no longer accepting new registrations through the portal.
             </p>
 
             <div className="p-6 bg-red-950/30 rounded-xl border border-red-500/30 mb-8 text-left">
