@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { ref, onValue, get, set } from 'firebase/database';
+import { ref, onValue, get, set, update } from 'firebase/database';
 import { auth, db } from './firebase.ts';
 
 interface AuthContextType {
@@ -38,12 +38,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Check if user is already approved in permissions collection
         const permissionRef = ref(db, `permissions/${user.uid}`);
         onValue(permissionRef, async (snapshot) => {
+          const currentName = user.displayName || user.email?.split('@')[0];
+
           if (snapshot.exists()) {
-            setPermissionStatus(snapshot.val().status);
+            const data = snapshot.val();
+            // Sync displayName if it was previously generic and now we have a real one
+            if (user.displayName && data.displayName !== user.displayName) {
+              await update(permissionRef, { displayName: user.displayName });
+            }
+            setPermissionStatus(data.status);
             setLoading(false);
           } else {
             // New user or Old user without permission record
-            // Check if they are an old user (already in teams)
             const teamsRef = ref(db, 'teams');
             const teamsSnapshot = await get(teamsRef);
             let isOldUser = false;
@@ -59,20 +65,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             if (isOldUser) {
-              // Auto-approve old users
               await set(permissionRef, {
                 email: user.email,
-                displayName: user.displayName || user.email?.split('@')[0],
+                displayName: currentName,
                 status: 'approved',
                 timestamp: new Date().toISOString(),
                 isOldUser: true
               });
               setPermissionStatus('approved');
             } else {
-              // New user, set to pending
               await set(permissionRef, {
                 email: user.email,
-                displayName: user.displayName || user.email?.split('@')[0],
+                displayName: currentName,
                 status: 'pending',
                 timestamp: new Date().toISOString(),
                 isOldUser: false

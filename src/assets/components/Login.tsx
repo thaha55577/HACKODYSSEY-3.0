@@ -9,6 +9,7 @@ import loginBg from '../login_bg.png';
 const Login = () => {
   const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -53,14 +54,20 @@ const Login = () => {
       return;
     }
 
-    setLoading(true);
-
     try {
       const signupEmail = trimmedEmail === '99230040469' ? '99230040469@klu.ac.in' : trimmedEmail;
-      await createUserWithEmailAndPassword(auth, signupEmail, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, signupEmail, password);
+
+      // Set display name for admin recognition
+      if (fullName) {
+        const { updateProfile } = await import('firebase/auth');
+        await updateProfile(userCredential.user, { displayName: fullName });
+      }
+
       toast.success('Account created successfully!');
       playSfx('transform');
       setEmail('');
+      setFullName('');
       setPassword('');
       setConfirmPassword('');
       setIsSignup(false);
@@ -142,6 +149,18 @@ const Login = () => {
         </h2>
 
         <form onSubmit={isSignup ? handleSignup : handleLogin} className="relative z-10">
+          {isSignup && (
+            <div className="mb-6">
+              <input
+                type="text"
+                placeholder="FULL NAME / ID (Ex: Thaha 2023-CSE)"
+                className="glow-input bg-black/50"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+              />
+            </div>
+          )}
           <div className="mb-6">
             <input
               type="text"

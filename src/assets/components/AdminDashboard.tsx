@@ -65,6 +65,7 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [showPermissions, setShowPermissions] = useState(false);
+  const [modalTab, setModalTab] = useState<'pending' | 'rejected' | 'approved'>('pending');
 
   useEffect(() => {
     const teamsRef = ref(db, 'teams');
@@ -101,17 +102,18 @@ const AdminDashboard = () => {
         return;
       }
 
-      const processedPermissions = Object.entries(data).map(([uid, perData]: [string, any]) => ({
-        uid,
-        ...perData,
-      }));
+      const processedPermissions = Object.entries(data)
+        .map(([uid, perData]: [string, any]) => ({
+          uid,
+          ...perData,
+        }))
+        // Filter: Hide Legacy teams but keep Pending, Rejected, and Approved for management
+        .filter(p => !p.isOldUser && (p.status === 'pending' || p.status === 'rejected' || p.status === 'approved'));
 
-      // Sort by status (pending first) then by timestamp
-      processedPermissions.sort((a, b) => {
-        if (a.status === 'pending' && b.status !== 'pending') return -1;
-        if (a.status !== 'pending' && b.status === 'pending') return 1;
-        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-      });
+      // Sort by newest first
+      processedPermissions.sort((a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
 
       setPermissions(processedPermissions);
     };
@@ -129,7 +131,7 @@ const AdminDashboard = () => {
     playSfx('click');
     try {
       await update(ref(db, `permissions/${uid}`), { status: 'approved' });
-      toast.success('Access Granted');
+      toast.success('Access Granted (Unit Activated)');
     } catch (error) {
       toast.error('Failed to grant access');
     }
@@ -139,7 +141,7 @@ const AdminDashboard = () => {
     playSfx('click');
     try {
       await update(ref(db, `permissions/${uid}`), { status: 'rejected' });
-      toast.success('Access Revoked');
+      toast.warning('Unit Moved to Trash Requests');
     } catch (error) {
       toast.error('Failed to revoke access');
     }
@@ -414,7 +416,12 @@ const AdminDashboard = () => {
     }, 500);
   };
 
-  const pendingCount = permissions.filter(p => p.status === 'pending').length;
+  const pendingRequests = permissions.filter(p => p.status === 'pending');
+  const trashRequests = permissions.filter(p => p.status === 'rejected');
+  const grantedRequests = permissions.filter(p => p.status === 'approved');
+  const activeCount = pendingRequests.length;
+  const trashCount = trashRequests.length;
+  const grantedCount = grantedRequests.length;
 
   return (
     <div className="min-h-screen px-4 py-8 relative overflow-hidden">
@@ -429,16 +436,29 @@ const AdminDashboard = () => {
             <h1 className="cybertron-title text-4xl">COMMAND CENTER</h1>
             <div className="flex gap-4">
               <button
-                onClick={() => setShowPermissions(true)}
-                className={`glow-btn relative ${pendingCount > 0 ? 'border-yellow-500 text-yellow-500' : ''}`}
+                onClick={() => {
+                  setShowPermissions(true);
+                  setModalTab('pending');
+                }}
+                className={`glow-btn relative ${activeCount > 0 ? 'border-yellow-500 text-yellow-500' : ''}`}
                 onMouseDown={() => playSfx('click')}
               >
                 ACCESS REQUESTS
-                {pendingCount > 0 && (
+                {activeCount > 0 && (
                   <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center animate-bounce shadow-[0_0_10px_rgba(255,0,0,0.8)]">
-                    {pendingCount}
+                    {activeCount}
                   </span>
                 )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowPermissions(true);
+                  setModalTab('rejected');
+                }}
+                className={`glow-btn border-gray-500 text-gray-400 hover:text-white`}
+                onMouseDown={() => playSfx('click')}
+              >
+                TRASH bin {trashCount > 0 && `(${trashCount})`}
               </button>
               <button onClick={handleLogout} className="glow-btn border-red-500 text-red-500" onMouseDown={() => playSfx('click')}>
                 ABORT SESSION
@@ -557,8 +577,27 @@ const AdminDashboard = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="tf-card w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col p-0 border-yellow-500/30"
             >
-              <div className="p-6 border-b border-yellow-500/20 flex justify-between items-center bg-black/40">
-                <h2 className="text-2xl text-yellow-400 font-orbitron tracking-wider">CLEARANCE PROTOCOLS</h2>
+              <div className="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-center bg-black/40 gap-4">
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setModalTab('pending')}
+                    className={`text-xl font-orbitron tracking-wider transition-all ${modalTab === 'pending' ? 'text-yellow-400 border-b-2 border-yellow-400 pb-1' : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                    CLEARANCE {activeCount > 0 && `(${activeCount})`}
+                  </button>
+                  <button
+                    onClick={() => setModalTab('approved')}
+                    className={`text-xl font-orbitron tracking-wider transition-all ${modalTab === 'approved' ? 'text-green-500 border-b-2 border-green-500 pb-1' : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                    GRANTED {grantedCount > 0 && `(${grantedCount})`}
+                  </button>
+                  <button
+                    onClick={() => setModalTab('rejected')}
+                    className={`text-xl font-orbitron tracking-wider transition-all ${modalTab === 'rejected' ? 'text-red-500 border-b-2 border-red-500 pb-1' : 'text-gray-500 hover:text-gray-300'}`}
+                  >
+                    TRASH {trashCount > 0 && `(${trashCount})`}
+                  </button>
+                </div>
                 <button
                   onClick={() => setShowPermissions(false)}
                   className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
@@ -567,60 +606,84 @@ const AdminDashboard = () => {
                 </button>
               </div>
 
-              <div className="overflow-y-auto p-6 space-y-4 custom-scrollbar">
-                {permissions.length === 0 ? (
-                  <p className="text-center text-gray-500 py-10 font-mono">NO PENDING ACCESS REQUESTS</p>
+              <div className="overflow-y-auto p-6 space-y-4 custom-scrollbar min-h-[400px]">
+                {(modalTab === 'pending' ? pendingRequests : modalTab === 'approved' ? grantedRequests : trashRequests).length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                    <span className="text-6xl mb-4">{modalTab === 'pending' ? '📑' : modalTab === 'approved' ? '✅' : '🗑️'}</span>
+                    <p className="text-xl font-mono">NO RECORDS FOUND IN THIS SECTOR</p>
+                  </div>
                 ) : (
-                  permissions.map((req) => (
+                  (modalTab === 'pending' ? pendingRequests : modalTab === 'approved' ? grantedRequests : trashRequests).map((req) => (
                     <div
                       key={req.uid}
                       className={`p-4 rounded-lg border flex flex-col md:flex-row justify-between items-center gap-4 transition-all ${req.status === 'pending'
-                          ? 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
-                          : req.status === 'approved'
-                            ? 'bg-green-500/10 border-green-500/20 opacity-80'
-                            : 'bg-red-500/10 border-red-500/20 opacity-80'
+                        ? 'bg-yellow-500/10 border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
+                        : req.status === 'approved'
+                          ? 'bg-green-500/10 border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
+                          : 'bg-red-500/5 border-red-500/20'
                         }`}
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-lg text-white font-bold font-mono">{req.displayName}</span>
-                          {req.isOldUser && (
-                            <span className="px-2 py-0.5 bg-cyan-900/40 text-cyan-400 text-[10px] rounded border border-cyan-800 uppercase">Legacy</span>
-                          )}
                           <span className={`px-2 py-0.5 text-[10px] rounded border uppercase ${req.status === 'pending' ? 'bg-yellow-900/40 text-yellow-400 border-yellow-800' :
-                              req.status === 'approved' ? 'bg-green-900/40 text-green-400 border-green-800' :
-                                'bg-red-900/40 text-red-400 border-red-800'
+                            req.status === 'approved' ? 'bg-green-900/40 text-green-400 border-green-800' :
+                              'bg-red-900/40 text-red-500 border-red-800'
                             }`}>
-                            {req.status}
+                            {req.status === 'pending' ? 'Incoming' : req.status === 'approved' ? 'Access Given' : 'In Trash'}
                           </span>
                         </div>
                         <div className="text-sm text-gray-400 font-mono">{req.email}</div>
-                        <div className="text-[10px] text-gray-500 font-mono mt-1">Requested: {new Date(req.timestamp).toLocaleString()}</div>
+                        <div className="text-[10px] text-gray-500 font-mono mt-1">LOGGED: {new Date(req.timestamp).toLocaleString('en-GB')}</div>
                       </div>
 
                       <div className="flex gap-2">
-                        {req.status !== 'approved' && (
-                          <button
-                            onClick={() => handleApprove(req.uid)}
-                            className="bg-green-600/20 hover:bg-green-600/40 text-green-400 border border-green-500/50 px-4 py-2 text-xs font-bold rounded flex items-center gap-2"
-                          >
-                            ✓ GRANT ACCESS
-                          </button>
+                        {modalTab === 'pending' ? (
+                          <>
+                            <button
+                              onClick={() => handleApprove(req.uid)}
+                              className="bg-green-600/20 hover:bg-green-600/40 text-green-400 border border-green-500/50 px-4 py-2 text-xs font-bold rounded flex items-center gap-2"
+                            >
+                              ✓ GRANT ACCESS
+                            </button>
+                            <button
+                              onClick={() => handleReject(req.uid)}
+                              className="bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/50 px-4 py-2 text-xs font-bold rounded flex items-center gap-2"
+                            >
+                              ✕ SEND TO TRASH
+                            </button>
+                          </>
+                        ) : modalTab === 'approved' ? (
+                          <>
+                            <button
+                              onClick={() => handleReject(req.uid)}
+                              className="bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/50 px-4 py-2 text-xs font-bold rounded flex items-center gap-2"
+                            >
+                              ✕ REVOKE ACCESS
+                            </button>
+                            <button
+                              onClick={() => handleDeletePermission(req.uid)}
+                              className="bg-gray-800 hover:bg-gray-700 text-gray-400 px-3 py-2 text-xs rounded border border-gray-600"
+                            >
+                              ERASE
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleApprove(req.uid)}
+                              className="bg-cyan-600/20 hover:bg-cyan-600/40 text-cyan-400 border border-cyan-500/50 px-4 py-2 text-xs font-bold rounded flex items-center gap-2"
+                            >
+                              ↺ RESTORE ACCESS
+                            </button>
+                            <button
+                              onClick={() => handleDeletePermission(req.uid)}
+                              className="bg-red-900/40 hover:bg-red-700/60 text-white px-3 py-2 text-xs rounded border border-red-500"
+                            >
+                              ERASE PERMANENTLY
+                            </button>
+                          </>
                         )}
-                        {req.status !== 'rejected' && (
-                          <button
-                            onClick={() => handleReject(req.uid)}
-                            className="bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-500/50 px-4 py-2 text-xs font-bold rounded flex items-center gap-2"
-                          >
-                            ✕ REVOKE
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeletePermission(req.uid)}
-                          className="bg-gray-800 hover:bg-gray-700 text-gray-400 px-3 py-2 text-xs rounded"
-                        >
-                          DELETE
-                        </button>
                       </div>
                     </div>
                   ))
