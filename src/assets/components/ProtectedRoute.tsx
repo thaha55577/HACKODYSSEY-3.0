@@ -29,7 +29,7 @@ const ProtectedRoute = ({ children, adminOnly }: ProtectedRouteProps) => {
   }
 
   // Permission check for non-admin routes (like /register)
-  if (!adminOnly && !isAdmin && permissionStatus === 'pending') {
+  if (!adminOnly && !isAdmin && permissionStatus !== 'approved') {
     return <ApprovalWaiting />;
   }
 
