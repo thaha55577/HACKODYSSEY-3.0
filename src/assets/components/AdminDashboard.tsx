@@ -38,6 +38,7 @@ interface AttendanceRow {
   teamName: string;
   regNo: string;
   name: string;
+  year: string;
   dept: string;
   phone: string;
   isFirstMember: boolean;
@@ -47,6 +48,8 @@ interface AttendanceRow {
   wardenName?: string;
   wardenPhone?: string;
   registrationTime?: string;
+  amount?: number;
+  transactionId?: string;
 }
 
 interface PermissionRequest {
@@ -79,11 +82,20 @@ const AdminDashboard = () => {
         return;
       }
 
-      const processedTeams = Object.entries(data).map(([teamName, teamData]: [string, any]) => ({
-        teamName,
-        members: teamData.members || [],
-        payment: teamData.payment,
-      }));
+      const processedTeams = Object.entries(data).map(([teamName, teamData]: [string, any]) => {
+        let membersArray = [];
+        if (teamData.members) {
+          membersArray = Array.isArray(teamData.members)
+            ? teamData.members
+            : Object.values(teamData.members);
+        }
+
+        return {
+          teamName,
+          members: membersArray,
+          payment: teamData.payment,
+        };
+      });
 
       processedTeams.sort((a, b) => {
         const timeA = a.payment?.timestamp ? new Date(a.payment.timestamp).getTime() : 0;
@@ -179,9 +191,15 @@ const AdminDashboard = () => {
     }
   };
 
-  const filteredTeams = teams.filter((team) =>
-    team.teamName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTeams = teams.filter((team) => {
+    const searchLower = searchTerm.toLowerCase();
+    const teamMatch = team.teamName.toLowerCase().includes(searchLower);
+    const memberMatch = team.members.some(m =>
+      m.name.toLowerCase().includes(searchLower) ||
+      m.regNo.toLowerCase().includes(searchLower)
+    );
+    return teamMatch || memberMatch;
+  });
 
   const flattenTeamsToRows = (teams: Team[]): AttendanceRow[] => {
     const rows: AttendanceRow[] = [];
@@ -192,6 +210,7 @@ const AdminDashboard = () => {
           teamName: team.teamName,
           regNo: member.regNo,
           name: member.name,
+          year: member.year || '',
           dept: member.dept || '',
           phone: member.phone || '',
           isFirstMember: memberIndex === 0,
@@ -201,6 +220,8 @@ const AdminDashboard = () => {
           wardenName: member.wardenName || '',
           wardenPhone: member.wardenPhone || '',
           registrationTime: team.payment?.timestamp ? new Date(team.payment.timestamp).toLocaleString() : '',
+          amount: team.payment?.amount,
+          transactionId: team.payment?.transactionId,
         });
       });
     });
@@ -216,16 +237,21 @@ const AdminDashboard = () => {
       return;
     }
 
-    let csvContent = 'Team Number,Team Name,Reg Number,Name,Department,Phone Number,Residence Type,Hostel Name,Room Number,Warden Name,Warden Phone,Registration Time\n';
+    try {
+      let csvContent = 'Team Number,Team Name,Reg Number,Name,Year,Department,Phone Number,Residence Type,Hostel Name,Room Number,Warden Name,Warden Phone,Registration Time,Amount,Transaction ID\n';
 
-    attendanceRows.forEach((row) => {
-      const escape = (s?: string) => `"${(s || '').replace(/"/g, '""')}"`;
-      csvContent += `${row.teamNumber},${escape(row.teamName)},${escape(row.regNo)},${escape(row.name)},${escape(row.dept)},${escape(row.phone)},${escape(row.residenceType)},${escape(row.hostelName)},${escape(row.roomNumber)},${escape(row.wardenName)},${escape(row.wardenPhone)},${escape(row.registrationTime)}\n`;
-    });
+      attendanceRows.forEach((row) => {
+        const escape = (s?: any) => `"${(String(s) || '').replace(/"/g, '""')}"`;
+        csvContent += `${row.teamNumber},${escape(row.teamName)},${escape(row.regNo)},${escape(row.name)},${escape(row.year)},${escape(row.dept)},${escape(row.phone)},${escape(row.residenceType)},${escape(row.hostelName)},${escape(row.roomNumber)},${escape(row.wardenName)},${escape(row.wardenPhone)},${escape(row.registrationTime)},${escape(row.amount)},${escape(row.transactionId)}\n`;
+      });
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    saveAs(blob, 'HACK-AI-THON-Team-Details.csv');
-    toast.success('CSV exported successfully');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      saveAs(blob, 'HACK-AI-THON-Team-Details.csv');
+      toast.success('CSV exported successfully');
+    } catch (error) {
+      console.error('CSV Export Error:', error);
+      toast.error('Failed to export CSV');
+    }
   };
 
   const handleExportPDF = async () => {
@@ -268,6 +294,7 @@ const AdminDashboard = () => {
       row.teamName,
       row.regNo,
       row.name,
+      row.year || '',
       row.dept,
       row.phone,
       row.residenceType || 'Day Scholar',
@@ -276,22 +303,27 @@ const AdminDashboard = () => {
       row.wardenName || '',
       row.wardenPhone || '',
       row.registrationTime || '',
+      row.amount?.toString() || '',
+      row.transactionId || '',
     ]);
 
     autoTable(doc, {
       head: [[
-        'Team Number',
+        '#',
         'Team Name',
-        'Reg Number',
+        'Reg No',
         'Name',
-        'Department',
+        'Year',
+        'Dept',
         'Phone',
-        'Residence Type',
-        'Hostel Name',
-        'Room Number',
-        'Warden Name',
+        'Type',
+        'Hostel',
+        'Room',
+        'Warden',
         'Warden Phone',
-        'Reg Time'
+        'Reg Time',
+        'Amt',
+        'Txn ID'
       ]],
       body: tableData,
       startY: 40,
@@ -357,6 +389,7 @@ const AdminDashboard = () => {
       row.teamName,
       row.regNo,
       row.name,
+      row.year || '',
       row.dept,
       row.phone,
       row.residenceType || 'Day Scholar',
@@ -369,16 +402,17 @@ const AdminDashboard = () => {
 
     autoTable(doc, {
       head: [[
-        'Team Number',
+        '#',
         'Team Name',
-        'Reg Number',
+        'Reg No',
         'Name',
-        'Department',
+        'Year',
+        'Dept',
         'Phone',
-        'Residence Type',
-        'Hostel Name',
-        'Room Number',
-        'Warden Name',
+        'Type',
+        'Hostel',
+        'Room',
+        'Warden',
         'Warden Phone',
         'Reg Time'
       ]],
