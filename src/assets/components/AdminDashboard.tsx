@@ -192,24 +192,39 @@ const AdminDashboard = () => {
   };
 
   const filteredTeams = teams.filter((team) => {
-    const searchLower = searchTerm.toLowerCase();
-    const teamMatch = team.teamName.toLowerCase().includes(searchLower);
-    const memberMatch = team.members.some(m =>
-      m.name.toLowerCase().includes(searchLower) ||
-      m.regNo.toLowerCase().includes(searchLower)
+    if (!team) return false;
+    const s = searchTerm.trim().toLowerCase();
+    if (!s) return true;
+
+    const teamMatch = (team.teamName || '').toLowerCase().includes(s);
+    const memberMatch = Array.isArray(team.members) && team.members.some(m =>
+      (m?.name || '').toLowerCase().includes(s) ||
+      (m?.regNo || '').toLowerCase().includes(s) ||
+      (m?.phone || '').toLowerCase().includes(s) ||
+      (m?.dept || '').toLowerCase().includes(s) ||
+      (m?.residenceType || '').toLowerCase().includes(s) ||
+      (m?.hostelName || '').toLowerCase().includes(s) ||
+      (m?.roomNumber || '').toLowerCase().includes(s)
     );
-    return teamMatch || memberMatch;
+    const paymentMatch = (team.payment?.transactionId || '').toLowerCase().includes(s);
+
+    return !!(teamMatch || memberMatch || paymentMatch);
   });
 
-  const flattenTeamsToRows = (teams: Team[]): AttendanceRow[] => {
+  const flattenTeamsToRows = (teamsList: Team[]): AttendanceRow[] => {
     const rows: AttendanceRow[] = [];
-    teams.forEach((team, teamIndex) => {
+    if (!Array.isArray(teamsList)) return rows;
+
+    teamsList.forEach((team, teamIndex) => {
+      if (!team || !Array.isArray(team.members)) return;
+
       team.members.forEach((member, memberIndex) => {
+        if (!member) return;
         rows.push({
           teamNumber: teamIndex + 1,
-          teamName: team.teamName,
-          regNo: member.regNo,
-          name: member.name,
+          teamName: team.teamName || 'Unknown',
+          regNo: member.regNo || '',
+          name: member.name || '',
           year: member.year || '',
           dept: member.dept || '',
           phone: member.phone || '',
@@ -583,7 +598,7 @@ const AdminDashboard = () => {
                     </div>
                     <div className="flex justify-between items-end">
                       <div className="text-cyan-400 font-mono text-sm">
-                        UNITS: {team.members.length}
+                        UNITS: {team.members ? (Array.isArray(team.members) ? team.members.length : Object.keys(team.members).length) : 0}
                       </div>
                       <div className="text-white border border-cyan-500 px-3 py-1 text-xs hover:bg-cyan-500/20 transition-colors">
                         ENGAGE
