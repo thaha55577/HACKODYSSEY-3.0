@@ -160,8 +160,8 @@ const RegistrationForm = () => {
     let finalValue = value;
 
     if (field === 'regNo') {
-      // Only numbers allowed
-      finalValue = value.replace(/[^0-9]/g, '');
+      // Allow alphanumeric characters for registration numbers
+      finalValue = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     } else if (field === 'year') {
       // Only 1-4 allowed, max 1 char
       finalValue = value.replace(/[^1-4]/g, '').slice(0, 1);
@@ -213,31 +213,36 @@ const RegistrationForm = () => {
     }
 
     const members = [leader, member1, member2, member3];
+    const memberLabels = ['Team Leader', 'Member 1', 'Member 2', 'Member 3'];
 
     for (let i = 0; i < members.length; i++) {
       const member = members[i];
-      if (!member.name || !member.regNo || !member.year || !member.dept || !member.phone) {
-        toast.error(`Please fill all fields for ${i === 0 ? 'Team Leader' : `Member ${i}`}`);
-        return;
-      }
-      if (member.phone.length !== 10) {
-        toast.error(`Phone number for ${i === 0 ? 'Team Leader' : `Member ${i}`} must be exactly 10 digits`);
-        return;
-      }
-    }
+      const label = memberLabels[i];
 
-    // Validate per-member hostel details for members who selected Hosteller
-    for (let i = 0; i < members.length; i++) {
-      const m = members[i];
-      if (m.residenceType === 'Hosteller') {
-        if (!m.hostelName || !m.roomNumber || !m.wardenName || !m.wardenPhone) {
-          toast.error(`Please fill all hostel fields for ${i === 0 ? 'Team Leader' : `Member ${i}`}`);
+      if (!member.name) { toast.error(`Please enter Name for ${label}`); return; }
+      if (!member.regNo) { toast.error(`Please enter Reg Number for ${label}`); return; }
+      if (!member.year) { toast.error(`Please select Year for ${label}`); return; }
+      if (!member.dept) { toast.error(`Please select Department for ${label}`); return; }
+      if (!member.phone) { toast.error(`Please enter Phone for ${label}`); return; }
+
+      if (member.phone.length !== 10) {
+        toast.error(`Phone number for ${label} must be exactly 10 digits`);
+        return;
+      }
+
+      if (member.residenceType === 'Hosteller') {
+        if (!member.hostelName || !member.roomNumber || !member.wardenName || !member.wardenPhone) {
+          toast.error(`Please fill all hostel fields for ${label}`);
+          return;
+        }
+        if (member.wardenPhone.length !== 10) {
+          toast.error(`Warden phone number for ${label} must be exactly 10 digits`);
           return;
         }
       }
     }
 
-    // Check for duplicate registrations
+    // Check for duplicate registrations and team name
     try {
       setLoading(true);
       const teamsRef = dbRef(db, 'teams');
@@ -245,23 +250,37 @@ const RegistrationForm = () => {
 
       if (snapshot.exists()) {
         const allTeams = snapshot.val();
-        const currentRegNos = members.map(m => m.regNo.trim().toLowerCase());
+
+        // Check if team name is already taken (case-insensitive)
+        const teamNameLower = teamName.trim().toLowerCase();
+        const teamExists = Object.keys(allTeams).some(name => name.toLowerCase() === teamNameLower);
+
+        if (teamExists) {
+          toast.error(`Team name "${teamName}" is already taken. Please choose another.`);
+          setLoading(false);
+          return;
+        }
+
+        const currentRegNos = members.map(m => m.regNo.trim().toUpperCase());
 
         for (const [tName, tData] of Object.entries(allTeams) as [string, any][]) {
-          if (tData.members) {
+          if (tData.members && Array.isArray(tData.members)) {
             for (const member of tData.members) {
-              if (currentRegNos.includes(member.regNo.trim().toLowerCase())) {
-                toast.error(`Registration Number ${member.regNo} is already registered in team "${tName}"`);
-                setLoading(false);
-                return;
+              if (member && member.regNo) {
+                const dbRegNo = member.regNo.toString().trim().toUpperCase();
+                if (currentRegNos.includes(dbRegNo)) {
+                  toast.error(`Registration Number ${dbRegNo} is already registered in team "${tName}"`);
+                  setLoading(false);
+                  return;
+                }
               }
             }
           }
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error checking duplicates:", error);
-      toast.error("Error verifying registration. Please try again.");
+      toast.error(`Verification failed: ${error.message || 'Please check your connection'}`);
       setLoading(false);
       return;
     }
