@@ -8,6 +8,8 @@ import Login from './assets/components/Login';
 import RegistrationForm from './assets/components/RegistrationForm';
 import AdminDashboard from './assets/components/AdminDashboard';
 import TeamDetail from './assets/components/TeamDetail';
+import IdeaSubmission from './assets/components/IdeaSubmission';
+import AdminIdeaSubmissions from './assets/components/AdminIdeaSubmissions';
 import ProtectedRoute from './assets/components/ProtectedRoute';
 
 function App() {
@@ -42,6 +44,22 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/ideas"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <AdminIdeaSubmissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/submit-idea"
+            element={
+              <ProtectedRoute adminOnly={false}>
+                <IdeaSubmission />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
         <ToastContainer
           position="top-right"
@@ -55,9 +73,6 @@ function App() {
           pauseOnHover
           theme="dark"
         />
-        {/* Global Sound Effects */}
-        <audio id="sfx-transform" src="https://www.myinstants.com/media/sounds/transformers.mp3"></audio>
-        <audio id="sfx-click" src="https://www.myinstants.com/media/sounds/robot-interface-hit.mp3"></audio>
       </AuthProvider>
     </Router>
   );

@@ -4,14 +4,14 @@ import { getAuth, GoogleAuthProvider, setPersistence, browserLocalPersistence } 
 import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDySPHRq53wDUSI8PKX4Jd-lRlvdRyTsoI",
-  authDomain: "hack-ai-thon-reg.firebaseapp.com",
-  databaseURL: "https://hack-ai-thon-reg-default-rtdb.firebaseio.com",
-  projectId: "hack-ai-thon-reg",
-  storageBucket: "hack-ai-thon-reg.firebasestorage.app",
-  messagingSenderId: "115875849364",
-  appId: "1:115875849364:web:64e726b1f5b290da22c081",
-  measurementId: "G-1XBYKSP56K"
+  apiKey: "AIzaSyCuBPcZnxwTWlAr3_HCnGitvoZ6iLGaZUs",
+  authDomain: "hack-odesy26.firebaseapp.com",
+  databaseURL: "https://hack-odesy26-default-rtdb.firebaseio.com",
+  projectId: "hack-odesy26",
+  storageBucket: "hack-odesy26.firebasestorage.app",
+  messagingSenderId: "734053969718",
+  appId: "1:734053969718:web:4fb4c49153f5eb1d0c0d97",
+  measurementId: "G-BDPE6P6FY3"
 };
 
 import { getStorage } from 'firebase/storage';
