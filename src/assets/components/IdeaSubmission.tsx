@@ -24,7 +24,6 @@ const IdeaSubmission = () => {
     const [projectTitle, setProjectTitle] = useState('');
     const [projectDescription, setProjectDescription] = useState('');
     const [hasSubmitted, setHasSubmitted] = useState(false);
-    const [isInternal, setIsInternal] = useState(false);
 
     useEffect(() => {
         const fetchTeamInfo = async () => {
@@ -39,10 +38,6 @@ const IdeaSubmission = () => {
                     const details = userTeam[1] as any;
                     setTeamName(userTeam[0]);
                     setTeamNumber(details.teamNumber || '');
-
-                    // Determine if team is internal (leader's college)
-                    const isInternalStudent = details.members?.[0]?.collegeSelect === 'Kalasalingam University';
-                    setIsInternal(isInternalStudent);
 
                     // Check if idea already submitted
                     const ideaRef = dbRef(db, `ideas/${userTeam[0]}`);
@@ -156,10 +151,7 @@ const IdeaSubmission = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {(isInternal
-                                ? ['SOFTWARE', 'HARDWARE', 'BOTH SOFTWARE & HARDWARE']
-                                : ['SOFTWARE']
-                            ).map(type => (
+                            {['SOFTWARE', 'HARDWARE', 'BOTH SOFTWARE AND HARDWARE'].map(type => (
                                 <button
                                     key={type}
                                     type="button"
@@ -191,7 +183,7 @@ const IdeaSubmission = () => {
                         </motion.section>
                     )}
 
-                    {(projectType === 'HARDWARE' || projectType === 'BOTH SOFTWARE & HARDWARE') && (
+                    {(projectType === 'HARDWARE' || projectType === 'BOTH SOFTWARE AND HARDWARE') && (
                         <>
                             {/* SDG Selection */}
                             <motion.section

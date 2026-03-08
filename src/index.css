@@ -80,12 +80,13 @@ h6,
 /* Premium Glass Card */
 .glass-card {
   background: var(--glass-bg);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: 28px;
   box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
-  transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.4s, box-shadow 0.4s;
+  will-change: transform;
 }
 
 .glass-card:hover {
@@ -169,17 +170,18 @@ h6,
 /* Odyssey Title Animation */
 .odyssey-title {
   background: linear-gradient(to right, #fff, var(--nebula-purple), var(--nebula-cyan), var(--cosmic-accent), #fff);
-  background-size: 300% auto;
+  background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: shine 8s linear infinite;
+  animation: shine 12s linear infinite;
   font-weight: 900;
+  will-change: background-position;
 }
 
 @keyframes shine {
   to {
-    background-position: 300% center;
+    background-position: 200% center;
   }
 }
 
@@ -359,12 +361,13 @@ h6,
   position: absolute;
   inset: -100px;
   background-image:
-    linear-gradient(rgba(59, 130, 246, 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59, 130, 246, 0.2) 1px, transparent 1px);
+    linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px);
   background-size: 80px 80px;
   transform: perspective(1000px) rotateX(60deg) translateY(0);
-  animation: gridMove 20s linear infinite;
+  animation: gridMove 30s linear infinite;
   mask-image: radial-gradient(circle at center, black, transparent 90%);
+  will-change: background-position;
 }
 
 @keyframes gridMove {

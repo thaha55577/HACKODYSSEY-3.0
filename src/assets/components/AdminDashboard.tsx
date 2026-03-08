@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ref, onValue, off } from 'firebase/database';
 import { db } from '../../firebase.ts';
 import { useNavigate } from 'react-router-dom';
@@ -220,13 +220,13 @@ const AdminDashboard = () => {
     navigate('/login');
   };
 
-  const filteredTeams = teams.filter(team =>
+  const filteredTeams = useMemo(() => teams.filter(team =>
     team.teamName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     team.members.some(m => m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.regNo.includes(searchTerm))
-  );
+  ), [teams, searchTerm]);
 
-  const totalStudents = teams.reduce((acc, team) => acc + (team.members?.length || 0), 0);
-  const totalIdeas = teams.filter(t => (t as any).ideaSubmitted).length;
+  const totalStudents = useMemo(() => teams.reduce((acc, team) => acc + (team.members?.length || 0), 0), [teams]);
+  const totalIdeas = useMemo(() => teams.filter(t => (t as any).ideaSubmitted).length, [teams]);
 
   return (
     <div className="min-h-screen bg-transparent relative overflow-x-hidden">

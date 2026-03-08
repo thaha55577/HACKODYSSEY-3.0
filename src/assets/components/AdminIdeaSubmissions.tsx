@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ref, onValue, off } from 'firebase/database';
 import { db } from '../../firebase.ts';
 import { useNavigate } from 'react-router-dom';
@@ -37,10 +37,10 @@ const AdminIdeaSubmissions = () => {
         return () => off(ideasRef, 'value', unsubscribe);
     }, []);
 
-    const filteredIdeas = ideas.filter(idea =>
+    const filteredIdeas = useMemo(() => ideas.filter(idea =>
         idea.teamName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         idea.projectTitle.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ), [ideas, searchTerm]);
 
     const downloadIdeaCSV = (idea: Idea) => {
         const headers = ['Field', 'Details'];

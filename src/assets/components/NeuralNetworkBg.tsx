@@ -12,9 +12,11 @@ const NeuralNetworkBg = () => {
 
     let animationFrameId: number;
     let particles: Particle[] = [];
-    const particleCount = 140; // Balanced density for performance
-    const connectionDistance = 150;
-    const mouse = { x: -1000, y: -1000, radius: 200 };
+    const particleCount = 100;
+    const connectionDistance = 140;
+    const connectionDistanceSq = connectionDistance * connectionDistance;
+    const mouse = { x: -1000, y: -1000, radius: 180 };
+    const mouseRadiusSq = mouse.radius * mouse.radius;
 
     class Particle {
       x: number;
@@ -29,9 +31,9 @@ const NeuralNetworkBg = () => {
         this.x = Math.random() * canvasWidth;
         this.y = Math.random() * canvasHeight;
         this.z = Math.random() * 2;
-        this.vx = (Math.random() - 0.5) * (0.6 - this.z * 0.2);
-        this.vy = (Math.random() - 0.5) * (0.6 - this.z * 0.2);
-        this.size = (Math.random() * 1.5 + 0.5) * (1.5 - this.z * 0.4);
+        this.vx = (Math.random() - 0.5) * (0.5 - this.z * 0.15);
+        this.vy = (Math.random() - 0.5) * (0.5 - this.z * 0.15);
+        this.size = (Math.random() * 1.5 + 0.5) * (1.3 - this.z * 0.3);
         this.color = '#22d3ee';
       }
 
@@ -44,10 +46,10 @@ const NeuralNetworkBg = () => {
 
         const dx = mouse.x - this.x;
         const dy = mouse.y - this.y;
-        const distanceSq = dx * dx + dy * dy;
+        const distSq = dx * dx + dy * dy;
 
-        if (distanceSq < mouse.radius * mouse.radius) {
-          const distance = Math.sqrt(distanceSq);
+        if (distSq < mouseRadiusSq) {
+          const distance = Math.sqrt(distSq);
           const force = (mouse.radius - distance) / mouse.radius;
           const angle = Math.atan2(dy, dx);
           this.x -= Math.cos(angle) * force * 1.2;
@@ -92,31 +94,30 @@ const NeuralNetworkBg = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       for (let i = 0; i < particles.length; i++) {
-        particles[i].update(canvas.width, canvas.height);
-        particles[i].draw(ctx);
+        const p1 = particles[i];
+        p1.update(canvas.width, canvas.height);
+        p1.draw(ctx);
 
         for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x;
-          const dy = particles[i].y - particles[j].y;
-          const distanceSq = dx * dx + dy * dy;
+          const p2 = particles[j];
+          const dx = p1.x - p2.x;
+          const dy = p1.y - p2.y;
+          const distSq = dx * dx + dy * dy;
 
-          if (distanceSq < connectionDistance * connectionDistance) {
-            const distance = Math.sqrt(distanceSq);
-            const opacity = (1 - distance / connectionDistance) * (1 - (particles[i].z + particles[j].z) * 0.2);
+          if (distSq < connectionDistanceSq) {
+            const distance = Math.sqrt(distSq);
+            const opacity = (1 - distance / connectionDistance) * (1 - (p1.z + p2.z) * 0.2);
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(34, 211, 238, ${opacity * 0.4})`;
-            ctx.lineWidth = opacity * 1.2;
-            ctx.moveTo(particles[i].x, particles[i].y);
-            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(34, 211, 238, ${opacity * 0.35})`;
+            ctx.lineWidth = opacity * 1.0;
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
             ctx.stroke();
 
-            // Higher efficiency pulse
-            if (i % 7 === 0 && Math.random() > 0.997) {
+            if (i % 10 === 0 && Math.random() > 0.998) {
               const pulseT = (Date.now() % 1000) / 1000;
-              const pulseX = particles[i].x + (particles[j].x - particles[i].x) * pulseT;
-              const pulseY = particles[i].y + (particles[j].y - particles[i].y) * pulseT;
               ctx.beginPath();
-              ctx.arc(pulseX, pulseY, 1.5, 0, Math.PI * 2);
+              ctx.arc(p1.x + (p2.x - p1.x) * pulseT, p1.y + (p2.y - p1.y) * pulseT, 1.2, 0, Math.PI * 2);
               ctx.fillStyle = '#fff';
               ctx.fill();
             }

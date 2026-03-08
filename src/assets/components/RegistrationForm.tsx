@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ref as dbRef, set, get } from 'firebase/database';
 import { db } from '../../firebase.ts';
 import { toast } from 'react-toastify';
@@ -317,8 +317,12 @@ const RegistrationForm = () => {
     );
   }
 
-  const currentMembers = [leader, member1, member2, member3];
-  if (teamSize === 5) currentMembers.push(member4);
+  const currentMembers = useMemo(() => {
+    const members = [leader, member1, member2, member3];
+    if (teamSize === 5) members.push(member4);
+    return members;
+  }, [leader, member1, member2, member3, member4, teamSize]);
+
   const setters = [setLeader, setMember1, setMember2, setMember3, setMember4];
 
   return (
