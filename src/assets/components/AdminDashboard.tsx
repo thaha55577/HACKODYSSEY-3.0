@@ -14,6 +14,7 @@ interface Member {
   year: string;
   dept: string;
   phone: string;
+  email: string;
   collegeSelect?: string;
   collegeName?: string;
   residenceType?: 'Day Scholar' | 'Hosteller';
@@ -33,7 +34,7 @@ interface Team {
 
 const DownloadManifestModal = ({ isOpen, onClose, teams }: { isOpen: boolean, onClose: () => void, teams: Team[] }) => {
   const exportCSV = (filterFn?: (m: Member) => boolean, fileName: string = 'HackOdyssey_Manifest') => {
-    const headers = ['Team ID', 'Team Name', 'Student Name', 'Register ID', 'Year', 'Dept', 'Phone', 'College', 'Residence', 'Hostel', 'Room'];
+    const headers = ['Team ID', 'Team Name', 'Student Name', 'Register ID', 'Email', 'Year', 'Dept', 'Phone', 'College', 'Residence', 'Hostel', 'Room'];
 
     const rows = teams.flatMap(team =>
       team.members
@@ -43,6 +44,7 @@ const DownloadManifestModal = ({ isOpen, onClose, teams }: { isOpen: boolean, on
           team.teamName,
           m.name,
           m.regNo,
+          m.email || 'N/A',
           m.year,
           m.dept,
           m.phone,

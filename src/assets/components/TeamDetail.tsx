@@ -87,6 +87,8 @@ const TeamDetail = () => {
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-4">
                         <span className="text-cyan-400/80">{m.regNo}</span>
                         <div className="w-1 h-1 rounded-full bg-slate-700" />
+                        <span className="text-emerald-400/80 lowercase">{m.email}</span>
+                        <div className="w-1 h-1 rounded-full bg-slate-700" />
                         <span>Year {m.year}</span>
                         <div className="w-1 h-1 rounded-full bg-slate-700" />
                         <span>{m.dept}</span>

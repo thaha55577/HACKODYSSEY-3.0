@@ -13,6 +13,7 @@ interface Member {
   year: string;
   dept: string;
   phone: string;
+  email: string; // Added email field
   collegeSelect: string;
   collegeName: string;
   residenceType?: 'Day Scholar' | 'Hosteller';
@@ -30,6 +31,9 @@ const RegistrationForm = () => {
   const [hasSubmittedIdea, setHasSubmittedIdea] = useState(false);
   const [checkingRegistration, setCheckingRegistration] = useState(true);
   const [agreedToRules, setAgreedToRules] = useState(false);
+  const [isTeamMember, setIsTeamMember] = useState(false);
+  const [teamLeaderName, setTeamLeaderName] = useState('');
+  const [registeredTeamName, setRegisteredTeamName] = useState('');
   const [teamSize, setTeamSize] = useState<4 | 5>(4);
 
   const initialMember: Member = {
@@ -38,6 +42,7 @@ const RegistrationForm = () => {
     year: '',
     dept: '',
     phone: '',
+    email: '', // Added email field
     collegeSelect: 'Kalasalingam University',
     collegeName: 'Kalasalingam University',
     residenceType: 'Day Scholar'
@@ -66,10 +71,25 @@ const RegistrationForm = () => {
         if (snapshot.exists()) {
           const allTeams = snapshot.val();
           for (const [name, details] of Object.entries(allTeams) as any[]) {
+            // Check if user is the creator (leader)
             if (details.createdBy === userEmail) {
               setHasRegistered(true);
+              setRegisteredTeamName(name);
               foundTeam = name;
               break;
+            }
+
+            // Check if user is a member
+            if (details.members && Array.isArray(details.members)) {
+              const memberIndex = details.members.findIndex((m: any) => m.email === userEmail);
+              if (memberIndex !== -1) {
+                setHasRegistered(true);
+                setIsTeamMember(true);
+                setRegisteredTeamName(name);
+                setTeamLeaderName(details.members[0].name); // First member is the leader
+                foundTeam = name;
+                break;
+              }
             }
           }
         }
@@ -116,7 +136,7 @@ const RegistrationForm = () => {
     for (let i = 0; i < members.length; i++) {
       const m = members[i];
       const role = i === 0 ? 'Commander' : `Student 0${i}`;
-      if (!m.name || !m.regNo || !m.phone || !m.year) {
+      if (!m.name || !m.regNo || !m.phone || !m.year || !m.email) {
         toast.error(`Fill all required fields for ${role}`);
         return;
       }
@@ -134,9 +154,38 @@ const RegistrationForm = () => {
 
     setLoading(true);
     try {
-      // Automate team number generation
       const teamsRef = dbRef(db, 'teams');
       const snapshot = await get(teamsRef);
+      const allTeams = snapshot.exists() ? snapshot.val() : {};
+
+      // Check for duplicate Team Name
+      if (allTeams[teamName]) {
+        toast.error('Team Name already exists! Please choose another team name.');
+        setLoading(false);
+        return;
+      }
+
+      // Check for duplicate emails
+      const enteredEmails = members.map(m => m.email.toLowerCase());
+      const existingEmails: Set<string> = new Set();
+
+      for (const team of Object.values(allTeams) as any[]) {
+        if (team.members && Array.isArray(team.members)) {
+          team.members.forEach((m: any) => {
+            if (m.email) existingEmails.add(m.email.toLowerCase());
+          });
+        }
+      }
+
+      for (const email of enteredEmails) {
+        if (existingEmails.has(email)) {
+          toast.error(`Email ${email} is already registered with another team.`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Automate team number generation
       const teamCount = snapshot.exists() ? Object.keys(snapshot.val()).length : 0;
       const generatedTeamNumber = `T${(teamCount + 1).toString().padStart(3, '0')}`;
 
@@ -151,24 +200,26 @@ const RegistrationForm = () => {
 
       // Notify n8n webhook via GET request with list-formatted data
       try {
-        const webhookUrl = new URL('https://thaha0502.app.n8n.cloud/webhook-test/189f18ce-4a43-440f-b9d1-eee85e49bba7');
+        const webhookUrl = new URL('https://thaha0502.app.n8n.cloud/webhook/189f18ce-4a43-440f-b9d1-eee85e49bba7');
         webhookUrl.searchParams.append('teamName', teamName);
         webhookUrl.searchParams.append('teamNumber', generatedTeamNumber);
         webhookUrl.searchParams.append('leaderEmail', auth.currentUser?.email || '');
         webhookUrl.searchParams.append('nameList', members.map(m => m.name).join(', '));
         webhookUrl.searchParams.append('regNoList', members.map(m => m.regNo).join(', '));
         webhookUrl.searchParams.append('yearList', members.map(m => m.year).join(', '));
+        webhookUrl.searchParams.append('emailList', members.map(m => m.email).join(', '));
 
         await fetch(webhookUrl.toString(), {
           method: 'GET',
           mode: 'no-cors'
         });
       } catch (webhookError) {
-        console.warn('Webhook notification failed:', webhookError);
+        console.warn('webhook notification failed:', webhookError);
       }
 
       toast.success('Registration Successfully Initialized!');
       setHasRegistered(true);
+      setRegisteredTeamName(teamName);
     } catch (error: any) {
       toast.error('Mission Failed: ' + error.message);
     } finally {
@@ -203,7 +254,13 @@ const RegistrationForm = () => {
               <svg className="w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" /></svg>
             </div>
             <h2 className="text-5xl font-black odyssey-title mb-6 leading-tight uppercase tracking-tighter">REGISTRATION COMPLETE</h2>
-            <p className="text-slate-500 mb-12 text-lg leading-relaxed font-medium">Your team registration and project details have been successfully submitted. Thank you for registering for Hack Odyssey 3.0.</p>
+            <p className="text-slate-500 mb-4 text-lg leading-relaxed font-medium">Your team registration and project details have been successfully submitted.</p>
+            {isTeamMember && (
+              <p className="text-blue-400 mb-8 text-sm font-black uppercase tracking-[0.2em]">
+                You are registered in team <span className="text-white">"{registeredTeamName}"</span> led by <span className="text-white">{teamLeaderName}</span>
+              </p>
+            )}
+            <p className="text-slate-500 mb-12 text-lg leading-relaxed font-medium">Thank you for registering for Hack Odyssey 3.0.</p>
 
             <div className="flex flex-col gap-5 max-w-sm mx-auto">
               <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 text-blue-400 text-xs font-black uppercase tracking-[0.3em] shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)]">All the best for Hack Odyssey 3.0</div>
@@ -234,7 +291,12 @@ const RegistrationForm = () => {
             <svg className="w-12 h-12 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" /></svg>
           </div>
           <h2 className="text-5xl font-black odyssey-title mb-6 leading-tight uppercase tracking-tighter">TEAM REGISTERED</h2>
-          <p className="text-slate-500 mb-12 text-lg leading-relaxed font-medium">Your team information has been saved. Please proceed to submit your project proposal.</p>
+          <p className="text-slate-500 mb-4 text-lg leading-relaxed font-medium">Your team information has been saved. Please proceed to submit your project proposal.</p>
+          {isTeamMember && (
+            <p className="text-emerald-400 mb-8 text-sm font-black uppercase tracking-[0.2em]">
+              You are already registered in team <span className="text-white">"{registeredTeamName}"</span> led by <span className="text-white">{teamLeaderName}</span>
+            </p>
+          )}
 
           <div className="flex flex-col gap-6 max-w-sm mx-auto">
             <button
@@ -395,6 +457,10 @@ const RegistrationForm = () => {
                           <option value="">SELECT YEAR</option>
                           {[1, 2, 3, 4].map(y => <option key={y} value={y}>Year {y}</option>)}
                         </select>
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[11px] font-black text-white uppercase tracking-[0.2em] ml-1">Email Address</label>
+                        <input type="email" placeholder="Enter Email" className="glow-input" value={m.email} onChange={e => handleMemberChange(setters[idx], 'email', e.target.value)} />
                       </div>
                       <div className="space-y-3">
                         <label className="text-[11px] font-black text-white uppercase tracking-[0.2em] ml-1">Mobile Number</label>
