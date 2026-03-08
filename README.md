@@ -147,3 +147,4 @@ npm run build
 
 All exports maintain the attendance sheet format for easy printing and record-keeping.
 # HACKARE_3.0-registration
+# HACKODYSSEY-3.0
