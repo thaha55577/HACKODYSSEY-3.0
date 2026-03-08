@@ -23,6 +23,7 @@ const ProtectedRoute = ({ children, adminOnly }: ProtectedRouteProps) => {
 
   const isAdmin = currentUser.email === '99230040469@klu.ac.in' ||
     currentUser.email === '99220041803@gmail.com' ||
+    currentUser.email === 'shaikthaha2005@gmail.com' ||
     currentUser.email === 'ACMKARE26@admin.com';
 
   if (adminOnly && !isAdmin) {

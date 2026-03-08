@@ -24,6 +24,7 @@ const IdeaSubmission = () => {
     const [projectTitle, setProjectTitle] = useState('');
     const [projectDescription, setProjectDescription] = useState('');
     const [hasSubmitted, setHasSubmitted] = useState(false);
+    const [isInternal, setIsInternal] = useState(false);
 
     useEffect(() => {
         const fetchTeamInfo = async () => {
@@ -38,6 +39,10 @@ const IdeaSubmission = () => {
                     const details = userTeam[1] as any;
                     setTeamName(userTeam[0]);
                     setTeamNumber(details.teamNumber || '');
+
+                    // Determine if team is internal (leader's college)
+                    const isInternalStudent = details.members?.[0]?.collegeSelect === 'Kalasalingam University';
+                    setIsInternal(isInternalStudent);
 
                     // Check if idea already submitted
                     const ideaRef = dbRef(db, `ideas/${userTeam[0]}`);
@@ -70,7 +75,10 @@ const IdeaSubmission = () => {
         if (!projectType) { toast.error("Select Project Type"); return; }
         if (selectedSDGs.length === 0) { toast.error("Select at least one SDG"); return; }
 
-        if (projectType !== 'SOFTWARE') {
+        // Validation mapping: If internal AND software, no title/desc needed. Otherwise, needed.
+        const requiresDetails = !(isInternal && projectType === 'SOFTWARE');
+
+        if (requiresDetails) {
             if (!projectTitle.trim()) { toast.error("Enter Project Title"); return; }
             if (!projectDescription.trim()) { toast.error("Enter Project Description"); return; }
         }
@@ -80,8 +88,8 @@ const IdeaSubmission = () => {
             const payload = {
                 projectType,
                 sdgs: selectedSDGs,
-                projectTitle: projectType === 'SOFTWARE' ? 'At Hackathon' : projectTitle,
-                projectDescription: projectType === 'SOFTWARE' ? 'Problem statement will be provided at the hackathon' : projectDescription,
+                projectTitle: requiresDetails ? projectTitle : 'At Hackathon',
+                projectDescription: requiresDetails ? projectDescription : 'Problem statement will be provided at the hackathon',
                 submittedAt: new Date().toISOString(),
                 teamName,
                 teamNumber,
@@ -139,10 +147,7 @@ const IdeaSubmission = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-20">
                     {/* Project Type */}
-                    <motion.section
-                        initial={{ opacity: 0, y: 30 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
+                    <section
                         className="glass-card p-12 border-blue-500/5 relative group"
                     >
                         <div className="flex items-center gap-6 mb-12">
@@ -163,33 +168,27 @@ const IdeaSubmission = () => {
                                 </button>
                             ))}
                         </div>
-                    </motion.section>
+                    </section>
 
                     {/* Conditional Sections based on Project Type */}
-                    {projectType === 'SOFTWARE' && (
-                        <motion.section
-                            initial={{ opacity: 0, y: 30 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
+                    {isInternal && projectType === 'SOFTWARE' && (
+                        <section
                             className="glass-card p-12 border-blue-500/10 relative group text-center"
                         >
                             <div className="flex flex-col items-center gap-8">
                                 <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-2xl border border-blue-500/20">ℹ️</div>
                                 <h3 className="text-xl font-bold text-white uppercase tracking-widest leading-relaxed">
-                                    You will be provided problem statements at the HACKATHON.<br />
+                                    Our Internal problem statements will be provided at the HACKATHON.<br />
                                     <span className="text-blue-400 text-sm mt-4 block">You can select your project path from the provided list at the venue.</span>
                                 </h3>
                             </div>
-                        </motion.section>
+                        </section>
                     )}
 
-                    {(projectType === 'HARDWARE' || projectType === 'BOTH SOFTWARE AND HARDWARE') && (
+                    {(!isInternal || projectType !== 'SOFTWARE') && projectType && (
                         <>
                             {/* SDG Selection */}
-                            <motion.section
-                                initial={{ opacity: 0, y: 30 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
+                            <section
                                 className="glass-card p-12 border-purple-500/5 relative group"
                             >
                                 <div className="flex items-center gap-6 mb-12">
@@ -215,13 +214,10 @@ const IdeaSubmission = () => {
                                         </button>
                                     ))}
                                 </div>
-                            </motion.section>
+                            </section>
 
                             {/* Project Details */}
-                            <motion.section
-                                initial={{ opacity: 0, y: 30 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
+                            <section
                                 className="glass-card p-12 border-emerald-500/5 relative group"
                             >
                                 <div className="flex items-center gap-6 mb-12">
@@ -250,29 +246,28 @@ const IdeaSubmission = () => {
                                         />
                                     </div>
                                 </div>
-                            </motion.section>
+                            </section>
 
                             {/* Hardware Note */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="p-8 rounded-[32px] bg-amber-500/5 border border-amber-500/20 text-center"
-                            >
-                                <p className="text-amber-400 text-xs font-black uppercase tracking-[0.4em] mb-2 shadow-amber-500/20">
-                                    ⚠️ MISSION REQUIREMENT
-                                </p>
-                                <p className="text-white text-sm font-bold uppercase tracking-widest leading-relaxed">
-                                    BRING YOUR OWN COMPONENTS FOR HARDWARE
-                                </p>
-                            </motion.div>
+                            {projectType !== 'SOFTWARE' && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-8 rounded-[32px] bg-amber-500/5 border border-amber-500/20 text-center"
+                                >
+                                    <p className="text-amber-400 text-xs font-black uppercase tracking-[0.4em] mb-2 shadow-amber-500/20">
+                                        ⚠️ MISSION REQUIREMENT
+                                    </p>
+                                    <p className="text-white text-sm font-bold uppercase tracking-widest leading-relaxed">
+                                        BRING YOUR OWN COMPONENTS FOR HARDWARE
+                                    </p>
+                                </motion.div>
+                            )}
                         </>
                     )}
 
                     {/* Submit */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        whileInView={{ opacity: 1 }}
-                        viewport={{ once: true }}
+                    <div
                         className="flex flex-col items-center gap-10 pt-10 pb-20"
                     >
                         <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.5em] animate-pulse italic">Preparing submission sequence</p>
@@ -307,7 +302,7 @@ const IdeaSubmission = () => {
                                 )}
                             </div>
                         </motion.button>
-                    </motion.div>
+                    </div>
                 </form>
             </div>
         </div>

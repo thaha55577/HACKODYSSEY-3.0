@@ -76,12 +76,13 @@ const RulesPopup = ({ onAccept }: { onAccept: () => void }) => {
         </div>
 
         <motion.button
+          type="button"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={onAccept}
           className="glow-btn w-full py-6 text-lg uppercase font-black tracking-[0.3em] relative group overflow-hidden"
         >
-          <span className="relative z-10">Engage Registration Protocol</span>
+          <span className="relative z-10">Confirm</span>
           <div className="absolute inset-0 bg-white/10 -translate-x-full group-hover:translate-x-0 transition-transform duration-700 ease-in-out" />
         </motion.button>
       </motion.div>
@@ -183,6 +184,7 @@ const Login = () => {
 
       const isAdmin = userCredential.user.email === '99230040469@klu.ac.in' ||
         userCredential.user.email === '99220041803@gmail.com' ||
+        userCredential.user.email === 'shaikthaha2005@gmail.com' ||
         userCredential.user.email === 'ACMKARE26@admin.com';
 
       if (isAdmin) {
@@ -344,6 +346,7 @@ const Login = () => {
                 const result = await signInWithPopup(auth, googleProvider);
                 const isAdmin = result.user.email === '99230040469@klu.ac.in' ||
                   result.user.email === '99220041803@gmail.com' ||
+                  result.user.email === 'shaikthaha2005@gmail.com' ||
                   result.user.email === 'ACMKARE26@admin.com';
 
                 if (isAdmin) {

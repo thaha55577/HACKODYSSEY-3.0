@@ -52,9 +52,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = async () => {
+    console.log("Shutting down neural link...");
     localStorage.removeItem('mockUser');
-    await signOut(auth);
     setCurrentUser(null);
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error("Sign out error:", e);
+    }
   };
 
   const value = {
