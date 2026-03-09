@@ -73,10 +73,14 @@ const IdeaSubmission = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!projectType) { toast.error("Select Project Type"); return; }
-        if (selectedSDGs.length === 0) { toast.error("Select at least one SDG"); return; }
 
-        // Validation mapping: If internal AND software, no title/desc needed. Otherwise, needed.
+        // Validation mapping: If internal AND software, no title/desc or SDG needed. Otherwise, needed.
         const requiresDetails = !(isInternal && projectType === 'SOFTWARE');
+
+        if (requiresDetails && selectedSDGs.length === 0) {
+            toast.error("Select at least one SDG");
+            return;
+        }
 
         if (requiresDetails) {
             if (!projectTitle.trim()) { toast.error("Enter Project Title"); return; }
