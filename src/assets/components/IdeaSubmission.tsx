@@ -178,7 +178,7 @@ const IdeaSubmission = () => {
                             <div className="flex flex-col items-center gap-8">
                                 <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center text-2xl border border-blue-500/20">ℹ️</div>
                                 <h3 className="text-xl font-bold text-white uppercase tracking-widest leading-relaxed">
-                                    Our Internal problem statements will be provided at the HACKATHON.<br />
+                                    problem statements will be provided at the HACKATHON.<br />
                                     <span className="text-blue-400 text-sm mt-4 block">You can select your project path from the provided list at the venue.</span>
                                 </h3>
                             </div>
