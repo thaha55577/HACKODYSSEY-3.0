@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ref, onValue, off } from 'firebase/database';
+import { ref, onValue } from 'firebase/database';
 import { db } from '../../firebase.ts';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -189,29 +189,42 @@ const AdminDashboard = () => {
     const teamsRef = ref(db, 'teams');
     const ideasRef = ref(db, 'ideas');
 
-    onValue(teamsRef, (teamsSnapshot) => {
-      onValue(ideasRef, (ideasSnapshot) => {
-        if (teamsSnapshot.exists()) {
-          const teamsData = teamsSnapshot.val();
-          const ideasData = ideasSnapshot.exists() ? ideasSnapshot.val() : {};
+    let teamsData: any = null;
+    let ideasData: any = {};
 
-          const teamsList = Object.entries(teamsData).map(([name, details]: [string, any]) => ({
-            teamName: name,
-            ...details,
-            ideaSubmitted: !!ideasData[name]
-          }));
-          setTeams(teamsList);
-          setLoading(false);
-        } else {
-          setTeams([]);
-          setLoading(false);
-        }
-      });
+    const updateTeams = () => {
+      if (!teamsData) return;
+
+      const teamsList = Object.entries(teamsData).map(([name, details]: [string, any]) => ({
+        teamName: name,
+        ...details,
+        ideaSubmitted: !!ideasData[name]
+      }));
+      setTeams(teamsList);
+      setLoading(false);
+    };
+
+    const unsubscribeTeams = onValue(teamsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        teamsData = snapshot.val();
+      } else {
+        teamsData = {};
+      }
+      updateTeams();
+    });
+
+    const unsubscribeIdeas = onValue(ideasRef, (snapshot) => {
+      if (snapshot.exists()) {
+        ideasData = snapshot.val();
+      } else {
+        ideasData = {};
+      }
+      updateTeams();
     });
 
     return () => {
-      off(teamsRef);
-      off(ideasRef);
+      unsubscribeTeams();
+      unsubscribeIdeas();
     };
   }, []);
 
@@ -322,7 +335,7 @@ const AdminDashboard = () => {
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           layout
-                          onClick={() => navigate(`/admin/team/${team.teamName}`)}
+                          onClick={() => navigate(`/admin/team/${encodeURIComponent(team.teamName)}`)}
                           className="group hover:bg-white/[0.03] transition-all cursor-pointer"
                         >
                           <td className="p-6 pl-10">

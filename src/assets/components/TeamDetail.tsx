@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ref, onValue, off } from 'firebase/database';
+import { ref, onValue } from 'firebase/database';
 import { db } from '../../firebase.ts';
 import { motion } from 'framer-motion';
 
@@ -13,12 +13,11 @@ const TeamDetail = () => {
   useEffect(() => {
     if (!teamName) return;
     const teamRef = ref(db, `teams/${teamName}`);
-    const handle = (snap: any) => {
+    const unsubscribe = onValue(teamRef, (snap: any) => {
       setTeam(snap.val());
       setLoading(false);
-    };
-    onValue(teamRef, handle);
-    return () => off(teamRef, 'value', handle);
+    });
+    return () => unsubscribe();
   }, [teamName]);
 
   return (

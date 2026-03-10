@@ -126,7 +126,16 @@ const RegistrationForm = () => {
     e.preventDefault();
 
     // Full Validation
-    if (!teamName.trim()) { toast.error('Enter Team Name'); return; }
+    const trimmedTeamName = teamName.trim();
+    if (!trimmedTeamName) { toast.error('Enter Team Name'); return; }
+
+    // Check for forbidden characters in Team Name
+    const forbiddenChars = /[.#$[\]/]/;
+    if (forbiddenChars.test(trimmedTeamName)) {
+      toast.error('Team Name contains forbidden characters (. , # , $ , / , [ , ])');
+      return;
+    }
+
     if (!agreedToRules) { toast.error('Accept the Mission Rules'); return; }
 
     const members = [leader, member1, member2, member3];
@@ -158,7 +167,7 @@ const RegistrationForm = () => {
       const allTeams = snapshot.exists() ? snapshot.val() : {};
 
       // Check for duplicate Team Name
-      if (allTeams[teamName]) {
+      if (allTeams[trimmedTeamName]) {
         toast.error('Team Name already exists! Please choose another team name.');
         setLoading(false);
         return;
@@ -195,12 +204,12 @@ const RegistrationForm = () => {
         timestamp: new Date().toISOString(),
       };
 
-      await set(dbRef(db, 'teams/' + teamName), payload);
+      await set(dbRef(db, 'teams/' + trimmedTeamName), payload);
 
       // Notify n8n webhook via GET request with list-formatted data
       try {
         const webhookUrl = new URL('https://thaha0502.app.n8n.cloud/webhook/189f18ce-4a43-440f-b9d1-eee85e49bba7');
-        webhookUrl.searchParams.append('teamName', teamName);
+        webhookUrl.searchParams.append('teamName', trimmedTeamName);
         webhookUrl.searchParams.append('teamNumber', generatedTeamNumber);
         webhookUrl.searchParams.append('leaderEmail', auth.currentUser?.email || '');
         webhookUrl.searchParams.append('nameList', members.map(m => m.name).join(', '));
@@ -218,7 +227,7 @@ const RegistrationForm = () => {
 
       toast.success('Registration Successfully Initialized!');
       setHasRegistered(true);
-      setRegisteredTeamName(teamName);
+      setRegisteredTeamName(trimmedTeamName);
     } catch (error: any) {
       toast.error('Mission Failed: ' + error.message);
     } finally {
