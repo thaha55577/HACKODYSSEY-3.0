@@ -200,7 +200,15 @@ const AdminDashboard = () => {
         ...details,
         ideaSubmitted: !!ideasData[name]
       }));
-      setTeams(teamsList);
+
+      // Sort teams by registration timestamp (chronological order)
+      const sortedTeams = teamsList.sort((a, b) => {
+        const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+        const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+        return timeA - timeB;
+      });
+
+      setTeams(sortedTeams);
       setLoading(false);
     };
 

@@ -28,7 +28,9 @@ const AdminIdeaSubmissions = () => {
         const unsubscribe = onValue(ideasRef, (snapshot) => {
             if (snapshot.exists()) {
                 const data = snapshot.val();
-                const ideaList = Object.values(data) as Idea[];
+                const ideaList = (Object.values(data) as Idea[]).sort((a, b) =>
+                    new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime()
+                );
                 setIdeas(ideaList);
             } else {
                 setIdeas([]);
